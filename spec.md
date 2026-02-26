@@ -1,30 +1,32 @@
 # SPECIFICATIONS
 
-Arduino Nano RP2040
-    - 264KB SRAM
-    - 16MB FLASH MEMORY
-    - Interfaces
-        - USB
-        - SPI
-        - 12C
-        - 12S
-        - PIO
-        - UART
-    - Wifi, Bluetooth
-    - Temperature Monitoring
-
-Bread Boards
-    - LEDs, displayes, potentiometer
+8BitDo Micro Bluetooth Gamepad
+    - Controller Mode
+        - D-input
+        - Switch mode
+        - Keyboard mode
+    - Connectivity
+        - Bluetooth
+        - Wired
+    - Button Mapping
 
 # COOL IDEAS
 
-Anki Remote
-    - Implement macros on the buttons, like calling lspci etc.
+Terminal Mode
+    - Navigate through the terminal using various functions, including but not limited to:
+        - Mapped arrow buttons
+        - Pre-saved terminal commands
+        - Copy and paste commands
 
-Arduino Nano
-    - Detect temperature, print to system out
-    - Have a bash script like "temp" that runs the code.
-    - Could do something with wifi/bluetooth
+Mouse Mode
+    - Use the d-pad to move the mouse around by pressing the appropriate arrows to move along the axis
+    - Right and left clicked mapped buttons
+
+Keyboard Mode
+    - Latin alphabet keyboard mapped to the different gamepad buttons
+    - Enter functionality
+
+All could be swapped between by using the controller mode switch.
 
 # DEFINITIONS
 
