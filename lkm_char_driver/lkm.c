@@ -12,14 +12,14 @@
 static int major;
 static struct cdev cdev;
 
-//need struct to map the gamepad buttons
+//need-> struct to map the gamepad buttons
 
 
 
-//need to define the ioctl command for mapping buttons
+//need-> to define the ioctl command for mapping buttons
 
 
-//need - read write variables
+//need -> read write variables
 static int button_pressed = 0;
 
 
@@ -30,7 +30,7 @@ static ssize_t read_gamepad(struct file *, const char __user *, size_t, loff_t *
 static long ioctl_gamepad(struct file *, unsigned int, unsigned long);
 
 //don't think we need this for our thing
-//static ssize_t write_gamepad(struct file *, const char __user *, size_t, loff_t *);
+static ssize_t write_gamepad(struct file *, const char __user *, size_t, loff_t *);
 
 
 //file ops structure for func calling
@@ -59,6 +59,11 @@ static ssize_t read_gamepad(struct file *file, char __user *buf, size_t count, l
   wait_event_interruptible(read_wait, pressed_button != 0);
 }
 
+//just return an error if it tries to write to our gamepad because it shouldn't be
+static ssize_t write_gamepad(struct file *, const char __user *, size_t, loff_t *);{
+  return -EINVAL;
+}
+
 //func for calling ioctl commands
 static long gamepad_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
 
@@ -75,7 +80,9 @@ static void __exit gamepad_exit(void){
 }
 
 
+//also need some func to create a proc file with info about the device/lkm
 
+//start and finish the lkm
 module_init(gamepad_init);
 module_exit(gamepad_exit);
 
