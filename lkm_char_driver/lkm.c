@@ -40,6 +40,7 @@ static const struct file_operations gamepad_fops = {
   .release = release_gamepad,
   .read = read_gamepad,
   .write = write_gamepad,
+  .unlocked_ioctl = ioctl_gamepad,
   //will prolly need 1 or 2 more here
 };
 
