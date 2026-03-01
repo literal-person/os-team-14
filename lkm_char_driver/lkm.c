@@ -14,10 +14,11 @@ static int major;
 static struct cdev cdev;
 static struct class *gamepad_class;
 
-//need-> struct to map the gamepad buttons
-
-
-
+//done-> struct to map the gamepad buttons
+struct button_mapper{
+  char button_id;
+  char command[256];
+}
 //need-> to define the ioctl command for mapping buttons
 
 
@@ -59,7 +60,7 @@ static int release_gamepad(struct inode *inode, struct file *file){
 }
 
 
-//reading and blocking until it dectects a button press
+//done -> reading and blocking until it dectects a button press
 static ssize_t read_gamepad(struct file *file, char __user *buf, size_t count, loff_t *fpos){
   wait_event_interruptible(read_wait, button_pressed != 0);
 
@@ -76,17 +77,17 @@ static ssize_t write_gamepad(struct file *file, const char __user *buf, size_t c
   return -EINVAL;
 }
 
-//func for calling ioctl commands
+//Cameron: need -> func for calling ioctl commands
 static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg){
 
 }
 
-//func gamepad_init for when module is initially loaded
+//Mark: need -> func gamepad_init for when module is initially loaded
 static int __init gamepad_init(void){
 
 }
 
-//func gamepad_exit for when removing module when finished
+//Cameron: need -> func gamepad_exit for when removing module when finished
 static void __exit gamepad_exit(void){
 
 }
@@ -101,5 +102,5 @@ module_exit(gamepad_exit);
 
 //just general module info you can call in the terminal
 MODULE_LICENSE("MIT");
-MODULE_AUTHOR("Mark, Alan, Cameron, Akram");
+MODULE_AUTHOR("Mark, Cameron);
 MODULE_DESCRIPTION("A gamepad Character device driver");
