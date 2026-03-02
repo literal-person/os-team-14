@@ -15,14 +15,14 @@
 
 static char _hashmap_last_error[64] = { '\0' };
 
-static struct hash_node
+struct hash_node
 {
 	void* key;
 	void* val;
 	char state;
 };
 
-static typedef struct
+ typedef struct
 {
 	struct hash_node* buckets;
 	void* data;
@@ -43,8 +43,8 @@ static hashmap* hashmap_new(size_t key_size, size_t val_size, unsigned int seed,
 	void key_destructor(const void*), void value_destructor(const void*))
 {
 	int               mfail = 0;
-	hashmap* out = malloc(sizeof(hashmap));
-	struct hash_node* buckets = calloc(INITIAL_BUCKETS, sizeof(struct hash_node));
+	hashmap* out = (hashmap*) malloc(sizeof(hashmap));
+	struct hash_node* buckets = (struct hash_node*) calloc(INITIAL_BUCKETS, sizeof(struct hash_node));
 	void* data = malloc(key_size * INITIAL_BUCKETS + val_size * INITIAL_BUCKETS);
 
 	if (!out || !buckets || !data)
@@ -150,7 +150,7 @@ static int hashmap_resize(hashmap* map, size_t resize_by)
 	map->space = resize_by;
 	struct hash_node* old_buckets = map->buckets;
 	void* old_data = map->data;
-	struct hash_node* new_buckets = calloc(map->space, sizeof(struct hash_node));
+	struct hash_node* new_buckets = (struct hash_node*)calloc(map->space, sizeof(struct hash_node));
 	void* new_data = malloc(map->key_size * map->space + map->val_size * map->space);
 
 	int mfail = 0;
@@ -359,6 +359,18 @@ static size_t hashmap_count(hashmap* map)
 		return 0;
 	}
 	return map->length;
+}
+static unsigned int hash_string(const void* str, unsigned int seed)
+{
+	char* s = *(char**)str;
+	return hashmap_murmur(s, strlen(s), seed);
+}
+
+static int compare_string(const void* str1, const void* str2)
+{
+	const char* s1 = *(char**)str1;
+	const char* s2 = *(char**)str2;
+	return strcmp(s1, s2);
 }
 
 #endif
