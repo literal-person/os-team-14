@@ -6,24 +6,56 @@
 #include <linux/wait.h> //DECLARE_WAIT_QUEUE_HEAD & wait_event_interruptible
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/device.h>
 
 
 //name of device, variable for major number,cdev structure, device class
 #define DEVICE_NAME "gamepad"
-static int major;
+static dev_t dev_num;
 static struct cdev cdev;
 static struct class *gamepad_class;
+static struct proc_dir_entry *proc_entry;
 
 //done-> struct to map the gamepad buttons
-struct button_mapper{
+struct map_buttons{
   char button_id;
   char command[256];
-}
+};
 //NEED-> to define the ioctl command for mapping buttons
 
 static int button_pressed = 0;
 static unsigned char button_id = 0;
 static DECLARE_WAIT_QUEUE_HEAD(read_wait);
+
+
+//proc file implementation
+static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
+    char stats[512];
+    int len;
+    // Format the stats string
+    len = snprintf(stats, sizeof(stats), "Gamepad Status: %d\n", button_id);
+    // Check if the user has already read the file
+    if (*ppos > 0 || count < len) {
+        return 0;
+    }
+    // Copy the stats to userspace
+    if (copy_to_user(buf, stats, len)) {
+        return -EFAULT;
+    }
+    // Update the file position
+    *ppos = len;
+    return len;
+}
+
+//don't use it - just for the brief
+static ssize_t stats_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos) {
+    return -EINVAL;
+}
+
+static const struct proc_ops stats_proc_ops = {
+    .proc_read = stats_proc_read,
+    .proc_write = stats_proc_write,
+};
 
 //func prototypes
 static int open_gamepad(struct inode *, struct file *);
@@ -73,29 +105,29 @@ static ssize_t write_gamepad(struct file *file, const char __user *buf, size_t c
 
 //Cameron: NEED -> func for calling ioctl commands
 static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg){
-
+  return 0;
 }
 
 //Mark: DONE -> func gamepad_init for when module is initially loaded
 static int __init gamepad_init(void){
     //allocating its device number
-  if(alloc_chrdev_region(&major, 0, 1, DEVICE_NAME)<0){
+  if(alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME)<0){
     pr_alert("Failed to allocate device number\n");
     return -1;
   }
 
   //making its device class for /dev/
-  gamepad_class = class_create(THIS_MODULE, DEVICE_NAME);
+  gamepad_class = class_create(DEVICE_NAME);
   if(IS_ERR(gamepad_class)) {
-    unregister_chrdev_region(major, 1);
+    unregister_chrdev_region(dev_num, 1);
     return PTR_ERR(gamepad_class);
   }
   //making its device file
-  device_create(gamepad_class, NULL, MKDEV(major, 0), NULL, DEVICE_NAME)
+  device_create(gamepad_class, NULL, dev_num, NULL, DEVICE_NAME);
 
   //for creating the character device
   cdev_init(&cdev, &gamepad_fops);
-  cdev_add(&cdev, MKDEV(major, 0), 1);
+  cdev_add(&cdev, dev_num, 1);
 
   // Create the proc file
   proc_entry = proc_create("stats_gamepad", 0444, NULL, &stats_proc_ops);
@@ -104,7 +136,7 @@ static int __init gamepad_init(void){
       return -ENOMEM;
   }
 
-  pr_info("Initialised your Gamepad. Your major number is: %d\n", major);
+  pr_info("Initialised your Gamepad. Your major number is: %d\n", dev_num);
   return 0;
 }
 
@@ -115,40 +147,10 @@ static void __exit gamepad_exit(void){
 
 }
 
-static const struct proc_ops stats_proc_ops = {
-    .proc_read = stats_proc_read,
-    .proc_write = stats_proc_write,
-};
-
-static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
-    char stats[512];
-    int len;
-
-    // Format the stats string
-    len = sprintf(stats,);
-
-    // Check if the user has already read the file
-    if (*ppos > 0 || count < len) {
-        return 0;
-    }
-
-    // Copy the stats to userspace
-    if (copy_to_user(buf, stats, len)) {
-        return -EFAULT;
-    }
-
-    // Update the file position
-    *ppos = len;
-    return len;
-}
-
-
-//NEED -> some funcs to create a proc file with info about the device/lkm
-
 //start and finish the lkm
 module_init(gamepad_init);
 module_exit(gamepad_exit);
 //just general module info you can call in the terminal
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mark, Cameron);
+MODULE_AUTHOR("Mark, Cameron");
 MODULE_DESCRIPTION("A gamepad Character device driver");
