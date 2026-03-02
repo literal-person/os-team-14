@@ -22,7 +22,7 @@ struct button_mapper{
 //NEED-> to define the ioctl command for mapping buttons
 
 static int button_pressed = 0;
-static char button_id = 0;
+static unsigned char button_id = 0;
 static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 
 //func prototypes
@@ -91,21 +91,55 @@ static int __init gamepad_init(void){
     return PTR_ERR(gamepad_class);
   }
   //making its device file
-  device_creat(gamepad_class, NULL, MKDEV(major, 0), NULL, DEVICE_NAME)
+  device_create(gamepad_class, NULL, MKDEV(major, 0), NULL, DEVICE_NAME)
 
   //for creating the character device
   cdev_init(&cdev, &gamepad_fops);
   cdev_add(&cdev, MKDEV(major, 0), 1);
 
-  //make its procfile in /proc/
-  proc_create("stats_gamepad", 0, NULL, &stats_proc_ops); //need to make the proc fops struct for this to work
-  pr_info("Initialised your Gamepad. Major number is: %d\n", major);
+  // Create the proc file
+  proc_entry = proc_create("stats_gamepad", 0444, NULL, &stats_proc_ops);
+  if (!proc_entry) {
+      pr_alert("Failed to create proc file\n");
+      return -ENOMEM;
+  }
+
+  pr_info("Initialised your Gamepad. Your major number is: %d\n", major);
   return 0;
 }
 
 //Cameron: NEED -> func gamepad_exit for when removing module when finished
 static void __exit gamepad_exit(void){
+  // Remove the proc file
+  remove_proc_entry("stats_gamepad", NULL);
 
+}
+
+static const struct proc_ops stats_proc_ops = {
+    .proc_read = stats_proc_read,
+    .proc_write = stats_proc_write,
+};
+
+static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
+    char stats[512];
+    int len;
+
+    // Format the stats string
+    len = sprintf(stats,);
+
+    // Check if the user has already read the file
+    if (*ppos > 0 || count < len) {
+        return 0;
+    }
+
+    // Copy the stats to userspace
+    if (copy_to_user(buf, stats, len)) {
+        return -EFAULT;
+    }
+
+    // Update the file position
+    *ppos = len;
+    return len;
 }
 
 
