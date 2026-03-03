@@ -140,11 +140,20 @@ static int __init gamepad_init(void){
   return 0;
 }
 
-//Cameron: NEED -> func gamepad_exit for when removing module when finished
+//Cameron: TEST -> func gamepad_exit for when removing module when finished
 static void __exit gamepad_exit(void){
   // Remove the proc file
   remove_proc_entry("stats_gamepad", NULL);
 
+  device_destroy(gamepad_class, dev_num);
+
+  class_destroy(gamepad_class);
+
+  cdev_del(&cdev);
+
+  unregister_chrdev_region(dev_num, 1);
+
+  pr_info("Removed your gamepad :(");
 }
 
 //start and finish the lkm
