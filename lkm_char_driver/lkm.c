@@ -32,8 +32,7 @@ static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
     char stats[512];
     int len;
-    // Format the stats string
-    len = snprintf(stats, sizeof(stats), "Gamepad Status: %d\n", button_id);
+    len = snprintf("Gamepad Status: %d\n", button_id);
     // Check if the user has already read the file
     if (*ppos > 0 || count < len) {
         return 0;
