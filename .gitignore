@@ -2,4 +2,8 @@
 *.o
 *.ko
 *.mod
+*.mod.cmd
+*.symvers
+*.order
+*.mod.c
 main
