@@ -7,6 +7,8 @@
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>
+#include <linux/input.h>
+#include <linux/slab.h>
 
 
 //name of device, variable for major number,cdev structure, device class
@@ -168,3 +170,48 @@ module_exit(gamepad_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark, Cameron");
 MODULE_DESCRIPTION("A gamepad Character device driver");
+
+
+
+
+
+
+
+
+//figuring out the input stuff
+
+static const struct input_device_id gamepad_id[] = {
+  {
+    .flags = INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT,
+    .vendor = 0x2dc8
+    .product = 0x9020
+  },
+  {},
+}
+
+
+static struct input_handler gamepad_handler = {
+  .event = gamepad_event,
+  .connect = gamepad_connect,
+  .disconnect = gamepad_disconnect,
+  .id_table = gampad_id
+  .name = "gamepad_handler",
+};
+
+
+
+static void gamepad_disconnect(struct input_handle *handle){
+  pr_info("Disconnected");
+  input_close_device(handle);
+  input_unregister_handle(handle);
+  kfree(handle);
+}
+
+static void gamepad_event(struct input_handle *handle, unsigned int type, unsigned int code, int value){
+  if(type == EV_KEY && value == 1){
+    button_id = (unsigned char)code;
+    button_pressed = 1;
+    pr_info("lkm - captured button id %d\n", code);
+    wake_up_interruptible(&read_wait);
+  }
+}
