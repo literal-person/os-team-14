@@ -20,10 +20,12 @@ int parse_id(unsigned char button_id){
     
     if(!command){
         printf("Invalid Command!\n");
+        return 1;
     }
     else{
         system(*command);
     }
+    return 0;
     //read file, match button id to hashmap
     //read from temporary proc file first
 }//id is an unsigned char
