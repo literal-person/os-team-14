@@ -12,9 +12,6 @@
 #include <stdlib.h>
 #define PROC_PATH "/home/literal-person/Documents/mark-project/os-team-14/userspace_app/tempproc.txt"
 int parse_id(char *button_id, hashmap *map){
-    
-    
-    printf("%d\n", strcmp(button_id, "305"));
     const char *key = button_id;
     char *command = (char*)hashmap_get(map, &key);
     
