@@ -105,6 +105,12 @@ static ssize_t write_gamepad(struct file *file, const char __user *buf, size_t c
 
 //Cameron: NEED -> func for calling ioctl commands
 static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg){
+  switch (cmd) {
+    default:
+      pr_info("Default\n");
+      break;
+  }
+
   return 0;
 }
 
