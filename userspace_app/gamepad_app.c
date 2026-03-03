@@ -59,14 +59,14 @@ int main(void) {
             buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
             char *last_line = strrchr(buf, ' ');
             if (last_line) {
-                last_line++; // Move past the space to the actual ID
+                last_line++; //go to actual id, past the space
                 printf("Read ID: %s\n", last_line);
                 printf("Command: %s\n", (char*)hashmap_get(map, &last_line));
                 parse_id(last_line, map);
             }
         }
         if (feof(fp)) {//if end of file
-            clearerr(fp);      
+            clearerr(fp);//clears end of file flag 
             sleep(1);//sleep until something else gets added
         } 
         else{
