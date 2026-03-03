@@ -10,6 +10,7 @@
 #include <unistd.h>
 #undef _POSIX_SOURCE
 #include <stdlib.h>
+#include <errno.h>
 #define PROC_PATH "/home/literal-person/Documents/mark-project/os-team-14/userspace_app/tempproc.txt"
 int parse_id(char *button_id, hashmap *map){
     const char *key = button_id;
@@ -35,29 +36,42 @@ hashmap *init_map(){
         compare_string,
         NULL,
         NULL);
-    const char *key1 = "305";
-    const char *key2 = "306";
-
-    hashmap_set(map, &key1, "lspci");
-    hashmap_set(map, &key2, "lsblk");
+    const char *keys[] = {"305", "306","307", "308","309", "310",};
+    
+    hashmap_set(map, &keys[0], "lspci");
+    hashmap_set(map, &keys[1], "lsblk");
+    hashmap_set(map, &keys[2], "lsmod");
+    hashmap_set(map, &keys[3], "cat /proc/stat_gamepad");
+    hashmap_set(map, &keys[4], "cd ..");
     return map;
 }
 int main(void) {
     hashmap *map = init_map();
     FILE *fp = fopen(PROC_PATH, "r");
-    char buf[64]; 
+    char buf[128]; 
     if (fp == NULL) {
         perror("fopen() error");
         return 1;
     }
     // fgets reads until \n or EOF
-    while (fgets(buf, sizeof(buf), fp) != NULL) {
-        buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
-        char *last_line = strrchr(buf, ' ');
-        if (last_line) {
-            last_line++; // Move past the space to the actual ID
-            printf("Read ID: '%s'\n", last_line);
-            parse_id(last_line, map);
+    while(1){
+        while (fgets(buf, sizeof(buf), fp) != NULL) {
+            buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
+            char *last_line = strrchr(buf, ' ');
+            if (last_line) {
+                last_line++; // Move past the space to the actual ID
+                printf("Read ID: %s\n", last_line);
+                printf("Command: %s\n", (char*)hashmap_get(map, &last_line));
+                parse_id(last_line, map);
+            }
+        }
+        if (feof(fp)) {//if end of file
+            clearerr(fp);      
+            sleep(1);//sleep until something else gets added
+        } 
+        else{
+            perror("fgets error");
+            break;
         }
     }
     hashmap_free(map);
