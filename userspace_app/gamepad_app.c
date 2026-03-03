@@ -10,27 +10,43 @@
 #include <unistd.h>
 #undef _POSIX_SOURCE
 #include <stdlib.h>
-#define PROC_PATH "/home/literal-person/Documents/mark project/os-team-14/userspace_app/tempproc.txt"
-int parse_id(unsigned char button_id){
-    hashmap *map = hashmap_new(sizeof(unsigned char), sizeof(char*), 0, NULL, NULL, NULL, NULL);
+#define PROC_PATH "/home/literal-person/Documents/mark-project/os-team-14/userspace_app/tempproc.txt"
+int parse_id(char *button_id, hashmap *map){
     
-    hashmap_set(map, &(unsigned char){0}, &(char*){"lspci"});
-    hashmap_set(map, &(unsigned char){1}, &(char*){"lsblk"});
-    char** command = (char**) hashmap_get(map, &(unsigned char){button_id});
+    
+    printf("%d\n", strcmp(button_id, "305"));
+    const char *key = button_id;
+    char *command = (char*)hashmap_get(map, &key);
     
     if(!command){
-        printf("Invalid Command!\n");
+        printf("Invalid Command for ID: %s\n", button_id);
         return 1;
     }
     else{
-        system(*command);
+        system(command);
     }
     return 0;
     //read file, match button id to hashmap
     //read from temporary proc file first
 }//id is an unsigned char
+hashmap *init_map(){
+    hashmap *map = hashmap_new(
+        sizeof(char*),
+        sizeof(char*),
+        0,
+        hash_string,
+        compare_string,
+        NULL,
+        NULL);
+    const char *key1 = "305";
+    const char *key2 = "306";
 
+    hashmap_set(map, &key1, "lspci");
+    hashmap_set(map, &key2, "lsblk");
+    return map;
+}
 int main(void) {
+    hashmap *map = init_map();
     FILE *fp = fopen(PROC_PATH, "r");
     char buf[64]; 
     if (fp == NULL) {
@@ -39,11 +55,15 @@ int main(void) {
     }
     // fgets reads until \n or EOF
     while (fgets(buf, sizeof(buf), fp) != NULL) {
-        int id = atoi(buf); //convert string to int
-        printf("Read ID: %d\n", id);
-        parse_id((unsigned char)id);
+        buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
+        char *last_line = strrchr(buf, ' ');
+        if (last_line) {
+            last_line++; // Move past the space to the actual ID
+            printf("Read ID: '%s'\n", last_line);
+            parse_id(last_line, map);
+        }
     }
-
+    hashmap_free(map);
     fclose(fp);
     return 0;
 }

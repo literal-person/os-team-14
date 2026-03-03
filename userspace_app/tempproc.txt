@@ -1,2 +1,5 @@
-0
-1
+Gamepad Status: 305
+Gamepad Status: 306
+Gamepad Status: 305
+Gamepad Status: 305
+Gamepad Status: 306
