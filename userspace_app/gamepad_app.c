@@ -11,22 +11,38 @@
 #undef _POSIX_SOURCE
 #include <stdlib.h>
 #include <errno.h>
+#include <pthread.h>
+
 #define PROC_PATH "/home/literal-person/Documents/mark-project/os-team-14/userspace_app/tempproc.txt"
-int parse_id(char *button_id, hashmap *map){
+
+typedef struct {
+	hashmap *map;
+	int commands_run;
+	int running;
+	pthread_mutex_t lock;
+}shared_data
+
+int parse_id(char *button_id, shared_data *shared){
+    pthread_mutex_lock(&shared->lock); // lock cause were accessing shared data
+ 
     const char *key = button_id;
     char *command = (char*)hashmap_get(map, &key);
-    
+
     if(!command){
         printf("Invalid Command for ID: %s\n", button_id);
         return 1;
     }
+
     else{
+	shared->commands_run++;
+	pthread_mutex_unlock(&shared->lock);
         system(command);
     }
     return 0;
     //read file, match button id to hashmap
     //read from temporary proc file first
 }//id is an unsigned char
+
 hashmap *init_map(){
     hashmap *map = hashmap_new(
         sizeof(char*),
@@ -43,6 +59,7 @@ hashmap *init_map(){
     hashmap_set(map, &keys[2], "lsmod");
     hashmap_set(map, &keys[3], "cat /proc/stat_gamepad");
     hashmap_set(map, &keys[4], "cd ..");
+    hashmap_set(map, &keys[5], "echo 'button 310: unassigned'");
     return map;
 }
 int main(void) {
