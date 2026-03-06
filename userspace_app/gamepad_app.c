@@ -35,7 +35,8 @@ int parse_id(char *button_id, shared_data *shared){
 
     else{
 	shared->commands_run++;
-	pthread_mutex_unlock(&shared->lock);
+	printf("[reader] Running command: %s\n", command);
+	pthread_mutex_unlock(&shared->lock);//unlock before system() as it takes time
         system(command);
     }
     return 0;
@@ -52,8 +53,7 @@ hashmap *init_map(){
         compare_string,
         NULL,
         NULL);
-    const char *keys[] = {"305", "306","307", "308","309", "310",};
-    
+    const char *keys[] = {"305", "306","307", "308","309", "310",};    
     hashmap_set(map, &keys[0], "lspci");
     hashmap_set(map, &keys[1], "lsblk");
     hashmap_set(map, &keys[2], "lsmod");
@@ -62,6 +62,65 @@ hashmap *init_map(){
     hashmap_set(map, &keys[5], "echo 'button 310: unassigned'");
     return map;
 }
+
+//Thread 1 reads button ids and runs commands
+void *reader_thread(void *arg){
+	shared_data *shared = (shared_data*)arg;
+	File *fp = fopen(PROC_PATH, "r");
+	char buf[128];
+
+	if(fp == NULL){
+		perror("fopen() error");
+		return NULL;
+	}
+
+	printf("[reader] Waiting for button press...\n");
+
+	while (1){
+       		 while (fgets(buf, sizeof(buf), fp) != NULL) {
+           		 buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
+           		 char *last_line = strrchr(buf, ' ');
+
+            		 if (last_line) {
+                		last_line++; //go to actual id, past the space
+                	 	printf("[reader] Read ID: %s\n", last_line);
+               		 	parse_id(last_line, map);
+           	 	}
+       		 }
+
+        	if (feof(fp)) {
+            		clearerr(fp);//clears end of file flag so fgets will try again nxt time 
+            		sleep(1);//sleep until something else gets added
+        	}
+		else{
+            		perror("fgets error");
+        	    break;
+	        }
+       }
+    fclose(fp);
+    shared->running = 0;
+    return NULL;
+}
+
+//Thread 2 prints count of commands ran periodically
+void* monitor_thread(void *arg){
+	shared_data *shared = (shared_data*)arg;
+
+	   while(1){
+		sleep(5);
+		pthread_mutex_lock(&shared->lock);
+		int still_running = shared->running; 
+		printf("[monitor] Commands count: %d\n",shared->commands_run);
+		pthread_mutex_unlock(&shared->lock);
+
+		if(!still_running){
+			break;
+		}
+	   }
+	return NULL:
+}
+
+
 int main(void) {
     hashmap *map = init_map();
     FILE *fp = fopen(PROC_PATH, "r");
