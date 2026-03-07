@@ -77,24 +77,24 @@ void *reader_thread(void *arg){
 	printf("[reader] Waiting for button press...\n");
 
 	while (1){
-       		 while (fgets(buf, sizeof(buf), fp) != NULL) {
-           		 buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
-           		 char *last_line = strrchr(buf, ' ');
+       	  while (fgets(buf, sizeof(buf), fp) != NULL) {
+  		 buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
+           	 char *last_line = strrchr(buf, ' ');
 
-            		 if (last_line) {
-                		last_line++; //go to actual id, past the space
-                	 	printf("[reader] Read ID: %s\n", last_line);
-               		 	parse_id(last_line, map);
-           	 	}
-       		 }
+            	 if (last_line) {
+               		last_line++; //go to actual id, past the space
+               	 	printf("[reader] Read ID: %s\n", last_line);
+           		parse_id(last_line, map);
+            	}
+       	 }
 
         	if (feof(fp)) {
-            		clearerr(fp);//clears end of file flag so fgets will try again nxt time 
-            		sleep(1);//sleep until something else gets added
+            	  clearerr(fp);//clears end of file flag so fgets will try again nxt time 
+               	  sleep(1);//sleep until something else gets added
         	}
 		else{
-            		perror("fgets error");
-        	    break;
+            	  perror("fgets error");
+        	  break;
 	        }
        }
     fclose(fp);
@@ -104,7 +104,7 @@ void *reader_thread(void *arg){
 
 //Thread 2 prints count of commands ran periodically
 void* monitor_thread(void *arg){
-	shared_data *shared = (shared_data*)arg;
+      shared_data *shared = (shared_data*)arg;
 
 	   while(1){
 		sleep(5);
@@ -114,7 +114,7 @@ void* monitor_thread(void *arg){
 		pthread_mutex_unlock(&shared->lock);
 
 		if(!still_running){
-			break;
+		   break;
 		}
 	   }
 	return NULL:
@@ -122,36 +122,24 @@ void* monitor_thread(void *arg){
 
 
 int main(void) {
-    hashmap *map = init_map();
-    FILE *fp = fopen(PROC_PATH, "r");
-    char buf[128]; 
-    if (fp == NULL) {
-        perror("fopen() error");
-        return 1;
-    }
-    // fgets reads until \n or EOF
-    while(1){
-        while (fgets(buf, sizeof(buf), fp) != NULL) {
-            buf[strcspn(buf, "\r\n")] = 0; //adds null terminator
-            char *last_line = strrchr(buf, ' ');
-            if (last_line) {
-                last_line++; //go to actual id, past the space
-                printf("Read ID: %s\n", last_line);
-                printf("Command: %s\n", (char*)hashmap_get(map, &last_line));
-                parse_id(last_line, map);
-            }
-        }
-        if (feof(fp)) {//if end of file
-            clearerr(fp);//clears end of file flag 
-            sleep(1);//sleep until something else gets added
-        } 
-        else{
-            perror("fgets error");
-            break;
-        }
-    }
-    hashmap_free(map);
-    fclose(fp);
+     shared_data shared;
+     shared.map = init_map();
+     shared.commands_run = 0;
+     shared.running = 1;
+
+     pthread_mutex_init(&shared.lock, NULL);
+     pthread_t reader;
+     pthread_t monitor;
+
+     pthread_create(&reader, NULL, reader_thread, &shared);
+     pthread_create(&monitor, NULL, monitor_thread, &shared);
+
+     pthread_join(reader, NULL);
+     pthread_join(monitor, NULL);
+
+     hashmap_free(shared.map);
+     pthread_mutex_destroy(&shared.lock); 
+
     return 0;
 }
 //TODO: use real procfile
