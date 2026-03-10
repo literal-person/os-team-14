@@ -212,7 +212,7 @@ static void gamepad_event(struct input_handle *handle, unsigned int type, unsign
 }
 
 
-static void gamepad_connect(struct input_handle *handler, struct input_dev *dev, const struct input_devic_id *id){
+static void gamepad_connect(struct input_handle *handler, struct input_dev *dev, const struct input_device_id *id){
   struct input_handle handler;
   handler = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
   handle->dev = dev;
