@@ -55,7 +55,7 @@ static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count
     last_btn = button_id;
     spin_unlock_irqrestore(&button_lock, flags);
 
-    len = snprintf(stats, sizeof(stats),"Gamepad Status: %d\n", button_id);
+    len = snprintf(stats, sizeof(stats),"Gamepad Status: %d\n", last_btn);
     // Check if the user has already read the file
     if (*ppos > 0 || count < len) {
         return 0;
@@ -169,7 +169,7 @@ static int __init gamepad_init(void){
     class_destroy(gamepad_class);
     unregister_chrdev_region(dev_num, 1);
     return -EINVAL;
-  };
+  }
 
   //for creating the character device
   cdev_init(&cdev, &gamepad_fops);
