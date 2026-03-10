@@ -119,7 +119,7 @@ static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg
 static int __init gamepad_init(void){
     //allocating its device number
   if(alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME)<0){
-    pr_alert("Failed to allocate device number\n");
+    pr_alert("lkm - Failed to allocate device number\n");
     return -1;
   }
 
@@ -139,11 +139,11 @@ static int __init gamepad_init(void){
   // Create the proc file
   proc_entry = proc_create("stats_gamepad", 0444, NULL, &stats_proc_ops);
   if (!proc_entry) {
-      pr_alert("Failed to create proc file\n");
+      pr_alert("lkm - Failed to create proc file\n");
       return -ENOMEM;
   }
 
-  pr_info("Initialised your Gamepad. Your major number is: %d\n", dev_num);
+  pr_info("lkm - Initialised your Gamepad. Your major number is: %d\n", dev_num);
   return 0;
 }
 
@@ -151,16 +151,11 @@ static int __init gamepad_init(void){
 static void __exit gamepad_exit(void){
   // Remove the proc file
   remove_proc_entry("stats_gamepad", NULL);
-
   device_destroy(gamepad_class, dev_num);
-
   class_destroy(gamepad_class);
-
   cdev_del(&cdev);
-
   unregister_chrdev_region(dev_num, 1);
-
-  pr_info("Removed your gamepad :(\n");
+  pr_info("lkm - Removed your gamepad :(\n");
 }
 
 //start and finish the lkm
@@ -214,4 +209,13 @@ static void gamepad_event(struct input_handle *handle, unsigned int type, unsign
     pr_info("lkm - captured button id %d\n", code);
     wake_up_interruptible(&read_wait);
   }
+}
+
+
+static void gamepad_connect(struct input_handler *handler, struct input_dev *dev, const struct input_devic_id *id){
+  struct input_handle handler;
+  handler = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+  handle->dev = dev;
+  handle->handler = handler;
+  handle->name = "8bitdo_handle";
 }
