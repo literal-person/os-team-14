@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-
+#include <linux/poll.h>
 
 //name of device, variable for major number,cdev structure, device class
 #define DEVICE_NAME "gamepad"
@@ -49,9 +49,12 @@ static void gamepad_disconnect(struct input_handle *);
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
     char stats[512];
     int len;
-
     unsigned long flags;
     unsigned char last_btn;
+
+    if (wait_event_interruptible(read_wait, atomic_read(&button_pressed)))
+        return -ERESTARTSYS;
+
     spin_lock_irqsave(&button_lock, flags);
     last_btn = button_id;
     spin_unlock_irqrestore(&button_lock, flags);
@@ -66,7 +69,7 @@ static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count
         return -EFAULT;
     }
     // Update the file position
-    *ppos = len;
+    *ppos = 0;
     return len;
 }
 
@@ -75,19 +78,19 @@ static ssize_t stats_proc_write(struct file *file, const char __user *buf, size_
     return -EINVAL;
 }
 
+static __poll_t stats_proc_poll(struct file *file, poll_table *wait){
+  poll_wait(file, &read_wait, wait);
+  if(atomic_read(&button_pressed)){
+    return EPOLLIN|EPOLLRDNORM;
+  }
+  return 0;
+}
+
 static const struct proc_ops stats_proc_ops = {
     .proc_read = stats_proc_read,
     .proc_write = stats_proc_write,
     .proc_poll = stats_proc_poll,
 };
-
-static __poll_t stats_proc_poll(struct file *file, poll_table *wait){
-  poll_wait(file, &read_wait, wait);
-  if(atomic_Read(&button_pressed)){
-    return EPOLLIN|EPOLLRDNORM;
-  }
-  return 0;
-}
 
 //func prototypes
 static int open_gamepad(struct inode *, struct file *);
