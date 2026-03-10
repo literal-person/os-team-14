@@ -118,7 +118,14 @@ void *monitor_thread(void *arg) {
   return NULL;
 }
 
+void print_welcome(void) {
+  printf("=====================Team 14=====================\n");
+  printf("Press any button to put a command in the console!\n");
+  printf("=================================================\n");
+}
+
 int main(void) {
+  print_welcome();
   shared_data shared;
   shared.map = init_map();
   shared.commands_run = 0;
