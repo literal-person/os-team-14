@@ -40,6 +40,7 @@ static atomic_t total_presses = ATOMIC_INIT(0);
 static bool device_connected = false;
 static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 
+static struct input_handler gamepad_handler;
 static void gamepad_event(struct input_handle *, unsigned int, unsigned int, int);
 static int  gamepad_connect(struct input_handler *, struct input_dev *, const struct input_device_id *);
 static void gamepad_disconnect(struct input_handle *);
@@ -77,7 +78,16 @@ static ssize_t stats_proc_write(struct file *file, const char __user *buf, size_
 static const struct proc_ops stats_proc_ops = {
     .proc_read = stats_proc_read,
     .proc_write = stats_proc_write,
+    .proc_poll = stats_proc_poll,
 };
+
+static __poll_t stats_proc_poll(struct file *file, poll_table *wait){
+  poll_wait(file, &read_wait, wait);
+  if(atomic_Read(&button_pressed)){
+    return EPOLLIN|EPOLLRDNORM;
+  }
+  return 0;
+}
 
 //func prototypes
 static int open_gamepad(struct inode *, struct file *);
