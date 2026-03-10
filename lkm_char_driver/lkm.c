@@ -26,16 +26,18 @@ struct map_buttons{
   char command[256];
 };
 
-#define GAMEPAD_MAGIC_NUM
+#define GAMEPAD_MAGIC_NUM 'G'
 #define GAMEPAD_MAP_BUTTON _IOW(GAMEPAD_MAGIC_NUM, 1, struct map_buttons)
-#define GAMEPAD_GET_MAPPING _IOR(GAMEPAD_MAGIC_NUM, 2, struct map buttons)
+#define GAMEPAD_GET_MAPPING _IOR(GAMEPAD_MAGIC_NUM, 2, struct map_buttons)
 #define MAX_BUTTONS_SIZE 256
-static struct map_buttons button_mappings[MAX_BUTTONS_SIZE]
+static struct map_buttons button_mappings[MAX_BUTTONS_SIZE];
 
 //put in atomics to avoid the race condition
-static atomic_t button_pressed = ATOMIC_INT(0);
+static atomic_t button_pressed = ATOMIC_INIT(0);
 static unsigned char button_id = 0;
 static DEFINE_SPINLOCK(button_lock);
+static atomic_t total_presses = ATOMIC_INIT(0);
+static bool device_connected = false;
 static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 
 static void gamepad_event(struct input_handle *, unsigned int, unsigned int, int);
@@ -46,6 +48,12 @@ static void gamepad_disconnect(struct input_handle *);
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
     char stats[512];
     int len;
+
+    unsigned long flags;
+    unsigned char last_btn;
+    spin_lock_irqsave(&button_lock, flags);
+    last_btn = button_id;
+    spin_unlock_irqrestore(&button_lock, flags);
 
     len = snprintf(stats, sizeof(stats),"Gamepad Status: %d\n", button_id);
     // Check if the user has already read the file
@@ -142,7 +150,7 @@ static int __init gamepad_init(void){
   int return_value;
     //allocating its device number
   return_value = alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
-  if(ret<0){
+  if(return_value<0){
     pr_alert("lkm - Failed to allocate device number");
     return return_value;
   }
@@ -193,7 +201,7 @@ static int __init gamepad_init(void){
     device_destroy(gamepad_class, dev_num);
     class_destroy(gamepad_class);
     unregister_chrdev_region(dev_num, 1);
-    return ret;
+    return return_value;
   }
   pr_info("lkm - Initialised your Gamepad. Your major number is: %d\n", MAJOR(dev_num));
   return 0;
@@ -218,13 +226,6 @@ module_exit(gamepad_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark, Cameron");
 MODULE_DESCRIPTION("A gamepad Character device driver");
-
-
-
-
-
-
-
 
 //figuring out the input stuff
 
@@ -270,6 +271,7 @@ static void gamepad_event(struct input_handle *handle, unsigned int type, unsign
     atomic_inc(&total_presses);
     pr_info("lkm - Captured button id %d\n", code);
     wake_up_interruptible(&read_wait);
+  }
 }
 
 
