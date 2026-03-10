@@ -34,7 +34,7 @@ static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
     char stats[512];
     int len;
-    len = snprintf("Gamepad Status: %d\n", button_id);
+    len = snprintf(stats, sizeof(stats),"Gamepad Status: %d\n", button_id);
     // Check if the user has already read the file
     if (*ppos > 0 || count < len) {
         return 0;
@@ -178,7 +178,7 @@ MODULE_DESCRIPTION("A gamepad Character device driver");
 static const struct input_device_id gamepad_id[] = {
   {
     .flags = INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT,
-    .vendor = 0x2dc8
+    .vendor = 0x2dc8,
     .product = 0x9020
   },
   {},
@@ -189,7 +189,7 @@ static struct input_handler gamepad_handler = {
   .event = gamepad_event,
   .connect = gamepad_connect,
   .disconnect = gamepad_disconnect,
-  .id_table = gampad_id
+  .id_table = gamepad_id,
   .name = "gamepad_handler",
 };
 
@@ -212,7 +212,7 @@ static void gamepad_event(struct input_handle *handle, unsigned int type, unsign
 }
 
 
-static void gamepad_connect(struct input_handler *handler, struct input_dev *dev, const struct input_devic_id *id){
+static void gamepad_connect(struct input_handle *handler, struct input_dev *dev, const struct input_devic_id *id){
   struct input_handle handler;
   handler = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
   handle->dev = dev;
