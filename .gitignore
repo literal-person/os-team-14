@@ -6,3 +6,8 @@ main
 *.symvers
 *.order
 *.mod.c
+*.mod.cmd
+*.symvers
+*.order
+*.mod.c
+main
