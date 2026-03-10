@@ -182,7 +182,7 @@ static const struct input_device_id gamepad_id[] = {
     .product = 0x9020
   },
   {},
-}
+};
 
 
 static struct input_handler gamepad_handler = {
@@ -212,10 +212,14 @@ static void gamepad_event(struct input_handle *handle, unsigned int type, unsign
 }
 
 
-static void gamepad_connect(struct input_handle *handler, struct input_dev *dev, const struct input_device_id *id){
-  struct input_handle handler;
-  handler = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+static int gamepad_connect(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id){
+  struct input_handle *handle;
+  handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+  if (!handle) return -ENOMEM;
   handle->dev = dev;
   handle->handler = handler;
   handle->name = "8bitdo_handle";
+  input_register_handle(handle);
+  input_open_device(handle);
+  return 0;
 }
