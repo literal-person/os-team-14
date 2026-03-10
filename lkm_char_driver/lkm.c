@@ -46,6 +46,7 @@ static void gamepad_disconnect(struct input_handle *);
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
     char stats[512];
     int len;
+
     len = snprintf(stats, sizeof(stats),"Gamepad Status: %d\n", button_id);
     // Check if the user has already read the file
     if (*ppos > 0 || count < len) {
@@ -101,13 +102,22 @@ static int release_gamepad(struct inode *inode, struct file *file){
 
 //Mark: DONE -> reading and blocking until it dectects a button press
 static ssize_t read_gamepad(struct file *file, char __user *buf, size_t count, loff_t *fpos){
-  wait_event_interruptible(read_wait, button_pressed != 0);
+  unsigned long flags;
+  unsigned char btn;
 
-  if(copy_to_user(buf, &button_id, 1)!=0){
+  if(wait_event_interruptible(read_wait, atomic_read(&button_pressed) != 0)){
+    return -ERESTARTSYS;
+  }
+
+  spin_lock_irqsave(&button_lock, flags);
+  btn = button_id;
+  spin_unlock_irqrestore(&button_lock, flags);
+
+  if(copy_to_user(buf, &btn, 1)!=0){
     return -EFAULT;
   }
 
-  button_pressed = 0;
+  atomic_set(&button_pressed, 0);
   return 1;
 }
 
@@ -129,10 +139,12 @@ static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg
 
 //Mark: DONE -> func gamepad_init for when module is initially loaded
 static int __init gamepad_init(void){
+  int return_value;
     //allocating its device number
-  if(alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME)<0){
-    pr_alert("lkm - Failed to allocate device number\n");
-    return -1;
+  return_value = alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
+  if(ret<0){
+    pr_alert("lkm - Failed to allocate device number");
+    return return_value;
   }
 
   //making its device class for /dev/
@@ -141,20 +153,48 @@ static int __init gamepad_init(void){
     unregister_chrdev_region(dev_num, 1);
     return PTR_ERR(gamepad_class);
   }
+
   //making its device file
-  device_create(gamepad_class, NULL, dev_num, NULL, DEVICE_NAME);
+
+  if(IS_ERR(device_create(gamepad_class, NULL, dev_num, NULL, DEVICE_NAME))){
+    pr_alert("lkm - Failed to create device\n");
+    class_destroy(gamepad_class);
+    unregister_chrdev_region(dev_num, 1);
+    return -EINVAL;
+  };
 
   //for creating the character device
   cdev_init(&cdev, &gamepad_fops);
-  cdev_add(&cdev, dev_num, 1);
+  return_value = cdev_add(&cdev, dev_num, 1);
+  if(return_value<0){
+    pr_alert("lkm - Failed to add cdev\n");
+    device_destroy(gamepad_class, dev_num);
+    class_destroy(gamepad_class);
+    unregister_chrdev_region(dev_num, 1);
+    return return_value;
+  }
 
   // Create the proc file
   proc_entry = proc_create("stats_gamepad", 0444, NULL, &stats_proc_ops);
   if (!proc_entry) {
       pr_alert("lkm - Failed to create proc file\n");
+      cdev_del(&cdev);
+      device_destroy(gamepad_class, dev_num);
+      class_destroy(gamepad_class);
+      unregister_chrdev_region(dev_num, 1);
       return -ENOMEM;
   }
 
+  return_value = input_register_handler(&gamepad_handler);
+  if(return_value) {
+    pr_alert("lkm - Failed to register input handler\n");
+    remove_proc_entry("stats_gamepad", NULL);
+    cdev_del(&cdev);
+    device_destroy(gamepad_class, dev_num);
+    class_destroy(gamepad_class);
+    unregister_chrdev_region(dev_num, 1);
+    return ret;
+  }
   pr_info("lkm - Initialised your Gamepad. Your major number is: %d\n", MAJOR(dev_num));
   return 0;
 }
@@ -190,13 +230,17 @@ MODULE_DESCRIPTION("A gamepad Character device driver");
 
 static const struct input_device_id gamepad_id[] = {
   {
-    .flags = INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT,
+    .flags = INPUT_DEVICE_ID_MATCH_VENDOR |
+             INPUT_DEVICE_ID_MATCH_PRODUCT |
+             INPUT_DEVICE_ID_MATCH_EVBIT,
     .vendor = 0x2dc8,
-    .product = 0x9020
+    .product = 0x9020,
+    .evbit = { BIT_MASK(EV_KEY) },
   },
   {},
 };
 
+MODULE_DEVICE_TABLE(input, gamepad_id);
 
 static struct input_handler gamepad_handler = {
   .event = gamepad_event,
@@ -209,7 +253,8 @@ static struct input_handler gamepad_handler = {
 
 
 static void gamepad_disconnect(struct input_handle *handle){
-  pr_info("Disconnected");
+  device_connected = false;
+  pr_info("lkm - Gamepad disconnected");
   input_close_device(handle);
   input_unregister_handle(handle);
   kfree(handle);
@@ -217,22 +262,40 @@ static void gamepad_disconnect(struct input_handle *handle){
 
 static void gamepad_event(struct input_handle *handle, unsigned int type, unsigned int code, int value){
   if(type == EV_KEY && value == 1){
+    unsigned long flags;
+    spin_lock_irqsave(&button_lock, flags);
     button_id = (unsigned char)code;
-    button_pressed = 1;
-    pr_info("lkm - captured button id %d\n", code);
+    spin_unlock_irqrestore(&button_lock, flags);
+    atomic_set(&button_pressed, 1);
+    atomic_inc(&total_presses);
+    pr_info("lkm - Captured button id %d\n", code);
     wake_up_interruptible(&read_wait);
-  }
 }
 
 
 static int gamepad_connect(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id){
   struct input_handle *handle;
+  int error;
+
   handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
   if (!handle) return -ENOMEM;
+
   handle->dev = dev;
   handle->handler = handler;
   handle->name = "8bitdo_handle";
-  input_register_handle(handle);
-  input_open_device(handle);
+
+  error = input_register_handle(handle);
+  if(error) {
+    kfree(handle);
+    return error;
+  }
+  error = input_open_device(handle);
+  if(error) {
+    input_unregister_handle(handle);
+    kfree(handle);
+    return error;
+  }
+  device_connected = true;
+  pr_info("lkm - Gamepad connected\n");
   return 0;
 }
