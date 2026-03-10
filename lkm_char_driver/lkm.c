@@ -9,6 +9,8 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/atomic.h>
 
 
 //name of device, variable for major number,cdev structure, device class
@@ -23,12 +25,22 @@ struct map_buttons{
   char button_id;
   char command[256];
 };
-//NEED-> to define the ioctl command for mapping buttons
 
-static int button_pressed = 0;
+#define GAMEPAD_MAGIC_NUM
+#define GAMEPAD_MAP_BUTTON _IOW(GAMEPAD_MAGIC_NUM, 1, struct map_buttons)
+#define GAMEPAD_GET_MAPPING _IOR(GAMEPAD_MAGIC_NUM, 2, struct map buttons)
+#define MAX_BUTTONS_SIZE 256
+static struct map_buttons button_mappings[MAX_BUTTONS_SIZE]
+
+//put in atomics to avoid the race condition
+static atomic_t button_pressed = ATOMIC_INT(0);
 static unsigned char button_id = 0;
+static DEFINE_SPINLOCK(button_lock);
 static DECLARE_WAIT_QUEUE_HEAD(read_wait);
 
+static void gamepad_event(struct input_handle *, unsigned int, unsigned int, int);
+static int  gamepad_connect(struct input_handler *, struct input_dev *, const struct input_device_id *);
+static void gamepad_disconnect(struct input_handle *);
 
 //proc file implementation
 static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
@@ -143,13 +155,14 @@ static int __init gamepad_init(void){
       return -ENOMEM;
   }
 
-  pr_info("lkm - Initialised your Gamepad. Your major number is: %d\n", dev_num);
+  pr_info("lkm - Initialised your Gamepad. Your major number is: %d\n", MAJOR(dev_num));
   return 0;
 }
 
 //Cameron: DONE -> func gamepad_exit for when removing module when finished
 static void __exit gamepad_exit(void){
   // Remove the proc file
+  input_unregister_handler(&gamepad_handler);
   remove_proc_entry("stats_gamepad", NULL);
   device_destroy(gamepad_class, dev_num);
   class_destroy(gamepad_class);
