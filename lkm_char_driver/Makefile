@@ -1,5 +1,11 @@
 obj-m += lkm.o
+
+# KDIR points to the build directory of your current running kernel
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=%(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=%(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean

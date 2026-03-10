@@ -12,10 +12,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
-
-#define PROC_PATH                                                              \
-  "/home/literal-person/Documents/mark-project/os-team-14/userspace_app/"      \
-  "tempproc.txt"
+#include <poll.h>
+#define PROC_PATH "/proc/stats_gamepad"
 
 typedef struct {
   hashmap *map;
@@ -32,6 +30,7 @@ int parse_id(char *button_id, shared_data *shared) {
 
   if (!command) {
     printf("Invalid Command for ID: %s\n", button_id);
+    pthread_mutex_unlock(&shared->lock);
     return 1;
   }
 
@@ -51,7 +50,7 @@ hashmap *init_map() {
   hashmap *map = hashmap_new(sizeof(char *), sizeof(char *), 0, hash_string,
                              compare_string, NULL, NULL);
   const char *keys[] = {
-      "305", "306", "307", "308", "309", "310",
+      "48", "49", "51", "52", "309", "310",
   };
   hashmap_set(map, &keys[0], "lspci");
   hashmap_set(map, &keys[1], "lsblk");
@@ -64,40 +63,50 @@ hashmap *init_map() {
 
 // Thread 1 reads button ids and runs commands
 void *reader_thread(void *arg) {
-  shared_data *shared = (shared_data *)arg;
-  FILE *fp = fopen(PROC_PATH, "r");
-  char buf[128];
+    shared_data *shared = (shared_data *)arg;
 
-  if (fp == NULL) {
-    perror("fopen() error");
+    int fd = open(PROC_PATH, O_RDONLY);
+    if (fd < 0) {
+        perror("open() error");
+        return NULL;
+    }
+
+    struct pollfd pfd = {
+        .fd     = fd,
+        .events = POLLIN,
+    };
+
+    printf("[reader] Waiting for button press...\n");
+
+    while (shared->running) {
+        // blocks here until kernel signals data is ready
+        int ret = poll(&pfd, 1, -1);
+        if (ret < 0) {
+            perror("poll() error");
+            break;
+        }
+
+        if (pfd.revents & POLLIN) {
+            char buf[128];
+            //lseek(fd, 0, SEEK_SET); // rewind to start of proc file
+            ssize_t n = read(fd, buf, sizeof(buf) - 1);
+            if (n > 0) {
+                buf[n] = '\0';
+                buf[strcspn(buf, "\r\n")] = 0;
+                // extract just the number after "Gamepad Status: "
+                char *id_str = strrchr(buf, ' ');
+                if (id_str) {
+                    id_str++;
+                    printf("[reader] Read ID: %s\n", id_str);
+                    parse_id(id_str, shared);
+                }
+            }
+        }
+    }
+
+    close(fd);
+    shared->running = 0;
     return NULL;
-  }
-
-  printf("[reader] Waiting for button press...\n");
-
-  while (1) {
-    while (fgets(buf, sizeof(buf), fp) != NULL) {
-      buf[strcspn(buf, "\r\n")] = 0; // adds null terminator
-      char *last_line = strrchr(buf, ' ');
-
-      if (last_line) {
-        last_line++; // go to actual id, past the space
-        printf("[reader] Read ID: %s\n", last_line);
-        parse_id(last_line, shared);
-      }
-    }
-
-    if (feof(fp)) {
-      clearerr(fp); // clears end of file flag so fgets will try again nxt time
-      sleep(1);     // sleep until something else gets added
-    } else {
-      perror("fgets error");
-      break;
-    }
-  }
-  fclose(fp);
-  shared->running = 0;
-  return NULL;
 }
 
 // Thread 2 prints count of commands ran periodically
