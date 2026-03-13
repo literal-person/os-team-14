@@ -145,7 +145,7 @@ static ssize_t write_gamepad(struct file *file, const char __user *buf, size_t c
   return -EINVAL;
 }
 
-//Cameron: NEED -> func for calling ioctl commands
+//Cameron: NEEDS TEST -> func for calling ioctl commands
 static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg) {
   struct map_buttons mapping_of_the_buttons;
 
