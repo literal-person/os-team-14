@@ -164,7 +164,11 @@ static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg
       pr_info("Mapped to button stuff blah blah blah, no. %d: %s", mapping_of_the_buttons.button_id, mapping_of_the_buttons.command);
       break;
     case GAMEPAD_GET_MAPPING:
+      if(copy_to_user((struct map_buttons __user *) arg, &mapping_of_the_buttons, sizeof(mapping_of_the_buttons))) {
+        return -1;
+      }
       pr_info("GAMEPAD GOT THE MAPPING!!!!");
+      break;
     default:
       pr_info("Default\n");
       break;
