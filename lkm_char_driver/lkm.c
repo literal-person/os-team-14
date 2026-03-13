@@ -147,7 +147,24 @@ static ssize_t write_gamepad(struct file *file, const char __user *buf, size_t c
 
 //Cameron: NEED -> func for calling ioctl commands
 static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg) {
+  struct map_buttons mapping_of_the_buttons;
+
   switch (cmd) {
+    case GAMEPAD_MAP_BUTTON:
+      if (copy_from_user(&mapping_of_the_buttons, (struct map_buttons __user *)arg, sizeof(mapping_of_the_buttons))) {
+        return -1;
+      }
+
+      if (mapping_of_the_buttons.button_id >= MAX_BUTTONS_SIZE) {
+        return -1;
+      }
+
+      button_mappings[mapping_of_the_buttons.button_id] = mapping_of_the_buttons;
+
+      pr_info("Mapped to button stuff blah blah blah, no. %d: %s", mapping_of_the_buttons.button_id, mapping_of_the_buttons.command);
+      break;
+    case GAMEPAD_GET_MAPPING:
+      pr_info("GAMEPAD GOT THE MAPPING!!!!");
     default:
       pr_info("Default\n");
       break;
