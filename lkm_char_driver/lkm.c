@@ -72,10 +72,8 @@ static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count
         return -EFAULT;
     }
     
-    // FIX 1: Advance the file position instead of resetting it to 0
     *ppos += stats_len; 
     
-    // FIX 2: Reset the button_pressed flag so poll() will block again
     atomic_set(&button_pressed, 0); 
     
     return stats_len;
