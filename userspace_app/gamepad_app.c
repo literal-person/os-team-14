@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <poll.h>
+#include "defines.h"
 #define PROC_PATH "/proc/stats_gamepad"
 
 typedef struct {
@@ -58,18 +59,23 @@ hashmap *init_map() {
   hashmap *map = hashmap_new(sizeof(char *), sizeof(char *), 0, hash_string,
                              compare_string, NULL, NULL);
   const char *keys[] = {
-      "48", "49", "51", "52", "309", "310",
+      "48", "49", "51", "52", "54", "55", "56", "57", "58","59","60"
   };
   const char *cmds[] = {
         "lspci | head -n 10",
         "lsblk | head -n 10",
         "lsmod | head -n 10",
         "cat /proc/stats_gamepad | head -n 10",
-        "echo 'cd .. has no effect in a subprocess'",
-        "echo 'button 310: unassigned'",
+        "pwd | head -n 10",
+        "echo 'Hello World!' | head -n 10",
+        "echo 'top doesnt work' | head -n 10",
+        "echo 'fortnite gaming' | head -n 10",
+        "man man| head -n 10",
+        "echo 'Ran out of command ideas' | head -n 10",
+        "echo 'Hello Mark'| head -n 10"
   };
 
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 11; i++) {
         char *cmd = strdup(cmds[i]);   // heap-allocated, stable pointer
         hashmap_set(map, &keys[i], &cmd);
     }
@@ -127,18 +133,30 @@ void *reader_thread(void *arg) {
 // Thread 2 prints count of commands ran periodically
 void *monitor_thread(void *arg) {
   shared_data *shared = (shared_data *)arg;
+  int fd = open("/dev/gamepad", O_RDWR);
+  if (fd < 0) {
+      perror("open");
+      return NULL;
+  }
 
+  int press_count = 0;
   while (1) {
     sleep(5);
     pthread_mutex_lock(&shared->lock);
+    if (ioctl(fd, GAMEPAD_GET_PRESS_COUNT, &press_count) < 0) {
+        perror("ioctl");
+        close(fd);
+    }
     int still_running = shared->running;
     printf("[monitor] Commands count: %d\n", shared->commands_run);
+    printf("[monitor] Button Presses: %d\n", press_count);
     pthread_mutex_unlock(&shared->lock);
 
     if (!still_running) {
       break;
     }
   }
+  close(fd);
   return NULL;
 }
 
