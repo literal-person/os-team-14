@@ -61,16 +61,23 @@ static ssize_t stats_proc_read(struct file *file, char __user *buf, size_t count
     spin_unlock_irqrestore(&button_lock, irq_flags);
 
     stats_len = snprintf(stats_buf, sizeof(stats_buf), "Gamepad Status: %d\n", last_btn);
+    
     // Check if the user has already read the file
     if (*ppos > 0 || count < stats_len) {
-        return 0;
+        return 0; // Return 0 to signal EOF
     }
+    
     // Copy the stats to userspace
     if (copy_to_user(buf, stats_buf, stats_len)) {
         return -EFAULT;
     }
-    // Update the file position
-    *ppos = 0;
+    
+    // FIX 1: Advance the file position instead of resetting it to 0
+    *ppos += stats_len; 
+    
+    // FIX 2: Reset the button_pressed flag so poll() will block again
+    atomic_set(&button_pressed, 0); 
+    
     return stats_len;
 }
 
@@ -91,6 +98,7 @@ static const struct proc_ops stats_proc_ops = {
     .proc_read  = stats_proc_read,
     .proc_write = stats_proc_write,
     .proc_poll  = stats_proc_poll,
+    .proc_lseek = default_llseek,
 };
 
 //func prototypes

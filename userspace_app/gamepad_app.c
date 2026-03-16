@@ -24,9 +24,15 @@ typedef struct {
 
 int parse_id(char *button_id, shared_data *shared) {
   pthread_mutex_lock(&shared->lock); // lock cause were accessing shared data
-
   const char *key = button_id;
-  char *command = (char *)hashmap_get(shared->map, &key);
+  char **cmd_ptr = (char **)hashmap_get(shared->map, &key);
+  if (!cmd_ptr) {
+      printf("Invalid Command for ID: %s\n", button_id);
+      pthread_mutex_unlock(&shared->lock);
+      return 1;
+  }
+  char *command = *cmd_ptr;
+  
 
   if (!command) {
     printf("Invalid Command for ID: %s\n", button_id);
@@ -39,7 +45,9 @@ int parse_id(char *button_id, shared_data *shared) {
     printf("[reader] Running command: %s\n", command);
     pthread_mutex_unlock(
         &shared->lock); // unlock before system() as it takes time
+    printf("==================================================================================================\n");
     system(command);
+    printf("==================================================================================================\n");
   }
   return 0;
   // read file, match button id to hashmap
@@ -52,12 +60,19 @@ hashmap *init_map() {
   const char *keys[] = {
       "48", "49", "51", "52", "309", "310",
   };
-  hashmap_set(map, &keys[0], "lspci");
-  hashmap_set(map, &keys[1], "lsblk");
-  hashmap_set(map, &keys[2], "lsmod");
-  hashmap_set(map, &keys[3], "cat /proc/stat_gamepad");
-  hashmap_set(map, &keys[4], "cd ..");
-  hashmap_set(map, &keys[5], "echo 'button 310: unassigned'");
+  const char *cmds[] = {
+        "lspci | head -n 10",
+        "lsblk | head -n 10",
+        "lsmod | head -n 10",
+        "cat /proc/stats_gamepad | head -n 10",
+        "echo 'cd .. has no effect in a subprocess'",
+        "echo 'button 310: unassigned'",
+  };
+
+  for (int i = 0; i < 6; i++) {
+        char *cmd = strdup(cmds[i]);   // heap-allocated, stable pointer
+        hashmap_set(map, &keys[i], &cmd);
+    }
   return map;
 }
 
@@ -88,7 +103,7 @@ void *reader_thread(void *arg) {
 
         if (pfd.revents & POLLIN) {
             char buf[128];
-            //lseek(fd, 0, SEEK_SET); // rewind to start of proc file
+            lseek(fd, 0, SEEK_SET); // rewind to start of proc file
             ssize_t n = read(fd, buf, sizeof(buf) - 1);
             if (n > 0) {
                 buf[n] = '\0';
