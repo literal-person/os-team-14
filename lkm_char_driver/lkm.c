@@ -29,6 +29,7 @@ struct map_buttons {
 #define GAMEPAD_MAGIC_NUM 'G'
 #define GAMEPAD_MAP_BUTTON _IOW(GAMEPAD_MAGIC_NUM, 1, struct map_buttons)
 #define GAMEPAD_GET_MAPPING _IOR(GAMEPAD_MAGIC_NUM, 2, struct map_buttons)
+#define GAMEPAD_GET_PRESS_COUNT _IOR(GAMEPAD_MAGIC_NUM, 3, int)
 #define MAX_BUTTONS_SIZE 256
 static struct map_buttons button_mappings[MAX_BUTTONS_SIZE];
 
@@ -152,11 +153,11 @@ static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg
   switch (cmd) {
     case GAMEPAD_MAP_BUTTON:
       if (copy_from_user(&mapping_of_the_buttons, (struct map_buttons __user *)arg, sizeof(mapping_of_the_buttons))) {
-        return -1;
+        return -EFAULT;
       }
 
       if (mapping_of_the_buttons.button_id >= MAX_BUTTONS_SIZE) {
-        return -1;
+        return -EINVAL;
       }
 
       button_mappings[mapping_of_the_buttons.button_id] = mapping_of_the_buttons;
@@ -164,13 +165,25 @@ static long ioctl_gamepad(struct file *file, unsigned int cmd, unsigned long arg
       pr_info("Mapped to button stuff blah blah blah, no. %d: %s", mapping_of_the_buttons.button_id, mapping_of_the_buttons.command);
       break;
     case GAMEPAD_GET_MAPPING:
-      if(copy_to_user((struct map_buttons __user *) arg, &mapping_of_the_buttons, sizeof(mapping_of_the_buttons))) {
-        return -1;
+      int index = (int)((struct map_buttons __user *)arg)->button_id;
+
+      if (index >= 0 && index < MAX_BUTTONS_SIZE) {
+        if(copy_to_user((struct map_buttons __user *) arg, &mapping_of_the_buttons, sizeof(mapping_of_the_buttons))) {
+          return -EFAULT;
+        }
+      }
+      else {
+        return -EINVAL;
       }
       pr_info("GAMEPAD GOT THE MAPPING!!!!");
       break;
+    case GAMEPAD_GET_PRESS_COUNT:
+      int count = atomic_read(&total_presses);
+      if (copy_to_user((int __user *)arg, &count, sizeof(count)))
+        return -EFAULT;
+      break;
     default:
-      pr_info("Default\n");
+      pr_info("Default command triggered, aka there is not anything for the thing that is a normal command (the ioctl command inputted is unrecognised basically)\n");
       break;
   }
 
