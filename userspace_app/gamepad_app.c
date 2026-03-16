@@ -4,7 +4,8 @@
 // movement this button id is stored in proc/read_gamepad if the id is an error,
 // print error message
 //  system("lspci");, is the function
-#include "hashmap.h"
+
+#include "defines.h"
 #define _POSIX_SOURCE
 #include <fcntl.h>
 #include <unistd.h>
@@ -13,55 +14,28 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <poll.h>
-#include "defines.h"
+#include <string.h>
+#include <stdio.h>
 #define PROC_PATH "/proc/stats_gamepad"
 
 typedef struct {
-  hashmap *map;
   int commands_run;
   int running;
   pthread_mutex_t lock;
 } shared_data;
 
 int parse_id(char *button_id, shared_data *shared) {
-  pthread_mutex_lock(&shared->lock); // lock cause were accessing shared data
-  const char *key = button_id;
-  char **cmd_ptr = (char **)hashmap_get(shared->map, &key);
-  if (!cmd_ptr) {
-      printf("Invalid Command for ID: %s\n", button_id);
-      pthread_mutex_unlock(&shared->lock);
-      return 1;
-  }
-  char *command = *cmd_ptr;
-  
+    pthread_mutex_lock(&shared->lock);
 
-  if (!command) {
-    printf("Invalid Command for ID: %s\n", button_id);
-    pthread_mutex_unlock(&shared->lock);
-    return 1;
-  }
+    int id = atoi(button_id);
 
-  else {
-    shared->commands_run++;
-    printf("[reader] Running command: %s\n", command);
-    pthread_mutex_unlock(
-        &shared->lock); // unlock before system() as it takes time
-    printf("==================================================================================================\n");
-    system(command);
-    printf("==================================================================================================\n");
-  }
-  return 0;
-  // read file, match button id to hashmap
-  // read from temporary proc file first
-} // id is an unsigned char
+    if (id < 48 || id > 60) {  
+        printf("Invalid Command for ID: %d\n", id);
+        pthread_mutex_unlock(&shared->lock);
+        return 1;
+    }
 
-hashmap *init_map() {
-  hashmap *map = hashmap_new(sizeof(char *), sizeof(char *), 0, hash_string,
-                             compare_string, NULL, NULL);
-  const char *keys[] = {
-      "48", "49", "51", "52", "54", "55", "56", "57", "58","59","60"
-  };
-  const char *cmds[] = {
+    const char *cmds[] = {
         "lspci | head -n 10",
         "lsblk | head -n 10",
         "lsmod | head -n 10",
@@ -70,17 +44,31 @@ hashmap *init_map() {
         "echo 'Hello World!' | head -n 10",
         "echo 'top doesnt work' | head -n 10",
         "echo 'fortnite gaming' | head -n 10",
-        "man man| head -n 10",
+        "man man | head -n 10",
         "echo 'Ran out of command ideas' | head -n 10",
-        "echo 'Hello Mark'| head -n 10"
-  };
+        "echo 'Hello Mark' | head -n 10"
+    };
 
-  for (int i = 0; i < 11; i++) {
-        char *cmd = strdup(cmds[i]);   // heap-allocated, stable pointer
-        hashmap_set(map, &keys[i], &cmd);
+    const char *command = NULL;  //ids are 48,49,[50],51,52,[53],54,56,57,58,59,60
+    printf("ID: %d\n",id);
+    if(id < 50){
+      command = cmds[id - 48];
+    } else if (id <= 52){
+      command = cmds[id - 49];
+    } else if (id <= 60){
+      command = cmds[id - 50];
     }
-  return map;
+    shared->commands_run++;
+    printf("[reader] Running command: %s\n", command);
+    pthread_mutex_unlock(&shared->lock);  // unlock before slow system()
+
+    printf("====================\n");
+    system(command);
+    printf("====================\n");
+
+    return 0;
 }
+
 
 // Thread 1 reads button ids and runs commands
 void *reader_thread(void *arg) {
@@ -169,7 +157,6 @@ void print_welcome(void) {
 int main(void) {
   print_welcome();
   shared_data shared;
-  shared.map = init_map();
   shared.commands_run = 0;
   shared.running = 1;
 
@@ -183,7 +170,6 @@ int main(void) {
   pthread_join(reader, NULL);
   pthread_join(monitor, NULL);
 
-  hashmap_free(shared.map);
   pthread_mutex_destroy(&shared.lock);
 
   return 0;
