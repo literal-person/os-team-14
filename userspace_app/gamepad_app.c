@@ -42,7 +42,7 @@ int parse_id(char *button_id, shared_data *shared) {
         "cat /proc/stats_gamepad | head -n 10",
         "pwd | head -n 10",
         "echo 'Hello World!' | head -n 10",
-        "echo 'top doesnt work' | head -n 10",
+        "echo 'Hello Hans' | head -n 10",
         "echo 'fortnite gaming' | head -n 10",
         "man man | head -n 10",
         "echo 'Ran out of command ideas' | head -n 10",

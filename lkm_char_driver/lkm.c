@@ -271,14 +271,6 @@ static void __exit gamepad_exit(void) {
   pr_info("lkm - Removed your gamepad :(\n");
 }
 
-//start and finish the lkm
-module_init(gamepad_init);
-module_exit(gamepad_exit);
-//just general module info you can call in the terminal
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mark, Cameron");
-MODULE_DESCRIPTION("A gamepad Character device driver");
-
 //figuring out the input stuff
 
 static const struct input_device_id gamepad_ids[] = {
@@ -352,3 +344,11 @@ static int gamepad_connect(struct input_handler *handler, struct input_dev *dev,
   pr_info("lkm - Gamepad connected\n");
   return 0;
 }
+
+//start and finish the lkm
+module_init(gamepad_init);
+module_exit(gamepad_exit);
+//just general module info you can call in the terminal
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Cameron, Mark");
+MODULE_DESCRIPTION("A gamepad Character device driver");
